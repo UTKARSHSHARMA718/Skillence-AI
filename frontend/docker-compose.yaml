@@ -1,0 +1,20 @@
+services:    
+  app2:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    tty: true
+    container_name: ${CONTAINER_NAME}
+    environment:
+      - STAG=${STAG}
+    image: 'bootcamp-interview-frontend'
+    ports:
+      - ${APP_PORT}:3000
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - development
+
+networks:
+  development:
+    external: true

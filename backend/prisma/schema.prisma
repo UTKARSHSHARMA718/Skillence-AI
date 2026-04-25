@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SessionStatus {
+  CREATED
+  IN_PROGRESS
+  COMPLETED
+  PAUSED
+}
+
+enum CandidateProfile {
+  HR
+  DESIGNING
+  PRODUCT_MANAGER
+  PRESALES
+  DEVELOPER
+  DEMAND_GENERATION
+}
+
+enum WebhookType {
+  CALL_ENDED
+  CALL_STARTED
+}
+
+type TopicEvaluation {
+  topicId       String
+  passed        Boolean
+  topicFeedback String
+}
+
+model Users {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  email    String  @unique
+  name     String?
+  password String
+  role     Role    @default(USER)
+
+  profile CandidateProfile?
+
+  refreshToken          String    @default("")
+  refreshTokenRotatedAt DateTime?
+  cachedAccessToken     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions    Sessions[]
+  resetTokens ResetToken[]
+  reports     Reports[]
+}
+
+model Sessions {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+  user   Users  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status SessionStatus @default(CREATED)
+
+  // videos used in this session
+  videoIds String[] @db.ObjectId
+
+  callId         String? // vapi call ID for this session
+  callCost       Float? // cost of the call from vapi
+  evaluationCost Float? // cost of evaluation from vapi
+
+  callDurationInMs Int? // duration of the call in ms
+
+  transcript Json?
+  audioUrl   String?
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  report         Reports?
+  missedWebhooks MissedWebhooks[]
+
+  @@index([status])
+}
+
+model VideosMetadata {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  title    String
+  url      String
+  duration Int // duration in seconds
+  topics   String[] // list of topics covered in the video
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Reports {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  sessionId String   @unique @db.ObjectId
+  session   Sessions @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  userId String @db.ObjectId
+  user   Users  @relation(fields: [userId], references: [id])
+
+  // TODO: improve this later
+  topicEvaluations TopicEvaluation[]
+
+  overAllResult   Boolean
+  overAllFeedback String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ResetToken {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @unique @db.ObjectId
+  user   Users  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MissedWebhooks {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  sessionId String   @db.ObjectId
+  session   Sessions @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  webhookType WebhookType // e.g. "CALL_ENDED", "CALL_STARTED"
+  payload     Json // store the entire payload for later processing
+
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: ${CONTAINER_NAME}
+    ports:
+      - ${APP_PORT}:4000
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - development
+
+
+
+networks:
+  development:
+    external: true
